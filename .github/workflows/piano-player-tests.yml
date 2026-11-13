@@ -1,0 +1,22 @@
+name: Piano player tests
+
+on:
+  push:
+    branches:
+      - feature/piano-player-foundation
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile application and piano modules
+        run: python -m compileall -q main.py piano
+      - name: Run piano unit tests
+        run: python -m unittest pytests.test_piano_musicxml_midi pytests.test_piano_playback -v
