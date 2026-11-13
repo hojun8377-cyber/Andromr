@@ -636,14 +636,16 @@ class PianoPlayerPage(Screen):
         def worker():
             try:
                 result = render_musicxml_to_wav(path, tempo_scale=tempo)
-                Clock.schedule_once(lambda dt: self._render_complete(path, result, None))
+                Clock.schedule_once(lambda dt: self._render_complete(path, result, None, tempo))
             except Exception as exc:
-                Clock.schedule_once(lambda dt, error=str(exc): self._render_complete(path, None, error))
+                Clock.schedule_once(
+                    lambda dt, error=str(exc): self._render_complete(path, None, error, tempo)
+                )
 
         Thread(target=worker, daemon=True).start()
 
-    def _render_complete(self, path, result, error):
-        if path != self.score_path:
+    def _render_complete(self, path, result, error, rendered_tempo):
+        if path != self.score_path or abs(rendered_tempo - self.tempo_scale) > 0.001:
             if result and os.path.exists(result[0]):
                 os.remove(result[0])
             return
