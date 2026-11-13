@@ -249,7 +249,7 @@ class LandingPage(Screen):
 
             l_name = ClickableLabel(
                 text=text,
-                size_hint_x=0.9,  # Make label take most space
+                size_hint_x=0.72,  # Leave room for playback, export and delete controls
                 size_hint_y=None,
                 height=dp(50),
                 halign="center",
