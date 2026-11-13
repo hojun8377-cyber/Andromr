@@ -1,0 +1,69 @@
+name: Android piano player build
+
+on:
+  push:
+    branches:
+      - feature/piano-player-foundation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/piano-player-foundation
+
+      - name: Install SoundFont archive tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full
+
+      - name: Fetch CC0 piano SoundFont
+        run: bash scripts/fetch_piano_soundfont.sh
+
+      - name: Build Android debug APK
+        run: |
+          mkdir -p "$HOME/.buildozer"
+          docker pull kivy/buildozer
+          docker run --rm -v "$HOME/.buildozer:/home/user/.buildozer" -v "$PWD:/home/user/hostcwd" -w /home/user/hostcwd kivy/buildozer bash -lc '
+            # First invocation installs the Android toolchain and prepares p4a templates.
+            buildozer android debug || true
+            COMMON=".buildozer/android/platform/python-for-android/pythonforandroid/bootstraps/common/build/templates/build.tmpl.gradle"
+            SDL=".buildozer/android/platform/python-for-android/pythonforandroid/bootstraps/sdl_common/build/templates/build.tmpl.gradle"
+            if [ -f "$COMMON" ]; then
+              python - "$COMMON" <<'"'"'PY'"'"'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1])
+          s = p.read_text()
+          line = "        ndk { abiFilters \'arm64-v8a\' }"
+          if line not in s and "defaultConfig {" in s:
+              s = s.replace("defaultConfig {", "defaultConfig {\\n" + line, 1)
+              p.write_text(s)
+          PY
+            fi
+            if [ -f "$SDL" ]; then
+              python - "$SDL" <<'"'"'PY'"'"'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1])
+          s = p.read_text()
+          attr = "android:enableOnBackInvokedCallback=\\"false\\""
+          if attr not in s and "<application" in s:
+              s = s.replace("<application", "<application " + attr, 1)
+              p.write_text(s)
+          PY
+            fi
+            buildozer android debug
+          '
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: andromr-piano-debug-apk
+          path: bin/*.apk
+          if-no-files-found: error
+          retention-days: 14
