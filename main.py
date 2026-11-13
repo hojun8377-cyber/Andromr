@@ -620,7 +620,7 @@ class PianoPlayerPage(Screen):
                 result = render_musicxml_to_wav(path, tempo_scale=tempo)
                 Clock.schedule_once(lambda dt: self._render_complete(path, result, None))
             except Exception as exc:
-                Clock.schedule_once(lambda dt: self._render_complete(path, None, str(exc)))
+                Clock.schedule_once(lambda dt, error=str(exc): self._render_complete(path, None, error))
 
         Thread(target=worker, daemon=True).start()
 
