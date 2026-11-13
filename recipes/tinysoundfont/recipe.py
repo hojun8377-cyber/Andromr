@@ -10,6 +10,7 @@ class TinySoundFontRecipe(Recipe):
     version = "0.9-local"
     url = None
     depends = []
+    archs = ["arm64-v8a"]
     built_libraries = {"libpianosynth.so": None}
 
     def should_build(self, arch):
