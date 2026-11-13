@@ -54,6 +54,13 @@ from globals import APP_PATH, XML_PATH, IMAGE_PATH, MODEL_STORAGE, appdata, APP_
 from utils import get_sys_theme, safe_filename, pdf_to_img, downscale_cv2
 from piano.piano_keyboard import PianoKeyboard
 from piano.player import render_musicxml_to_wav
+from piano.playback import (
+    active_pitches_at,
+    clamp_tempo_scale,
+    format_time,
+    position_from_progress,
+    progress_from_position,
+)
 
 if platform == "android":
     from androidstorage4kivy import SharedStorage, ShareSheet  # type: ignore
@@ -594,8 +601,7 @@ class PianoPlayerPage(Screen):
 
     @staticmethod
     def _format_time(seconds):
-        seconds = max(0, int(seconds))
-        return f"{seconds // 60:02d}:{seconds % 60:02d}"
+        return format_time(seconds)
 
     def _release_audio(self):
         if self.sound:
@@ -696,13 +702,10 @@ class PianoPlayerPage(Screen):
             self.ids.playhead_label.text = f"00:00 / {self._format_time(self.duration)}"
             return False
         position = max(0.0, self.sound.get_pos())
-        active = [
-            note["pitch"] for note in self.display_notes
-            if note["start"] <= position < note["end"]
-        ]
+        active = active_pitches_at(self.display_notes, position)
         self.ids.keyboard.set_active_notes(active)
         self._updating_progress = True
-        self.ids.progress_slider.value = min(1000, position / max(self.duration, 0.001) * 1000)
+        self.ids.progress_slider.value = progress_from_position(position, self.duration)
         self._updating_progress = False
         self.ids.playhead_label.text = (
             f"{self._format_time(position)} / {self._format_time(self.duration)}"
@@ -712,23 +715,20 @@ class PianoPlayerPage(Screen):
     def seek_playback(self, value):
         if self._updating_progress or not self.sound or self.duration <= 0:
             return
-        position = max(0.0, min(self.duration, float(value) / 1000.0 * self.duration))
+        position = position_from_progress(value, self.duration)
         try:
             self.sound.seek(position)
         except Exception as exc:
             self.ids.player_status.text = f"위치 이동을 지원하지 않는 오디오 장치입니다: {exc}"
             return
-        active = [
-            note["pitch"] for note in self.display_notes
-            if note["start"] <= position < note["end"]
-        ]
+        active = active_pitches_at(self.display_notes, position)
         self.ids.keyboard.set_active_notes(active)
         self.ids.playhead_label.text = (
             f"{self._format_time(position)} / {self._format_time(self.duration)}"
         )
 
     def set_tempo(self, value):
-        value = max(0.5, min(1.5, float(value)))
+        value = clamp_tempo_scale(value)
         if not self.score_path or abs(value - self.tempo_scale) < 0.02:
             return
         self.tempo_scale = value
