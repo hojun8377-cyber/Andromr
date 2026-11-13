@@ -589,6 +589,13 @@ class PianoPlayerPage(Screen):
         self.duration = 0.0
         self.tempo_scale = 1.0
         self.play_event = None
+        self._tempo_event = None
+        self._updating_progress = False
+
+    @staticmethod
+    def _format_time(seconds):
+        seconds = max(0, int(seconds))
+        return f"{seconds // 60:02d}:{seconds % 60:02d}"
 
     def load_score(self, path):
         self.stop_playback()
@@ -641,6 +648,8 @@ class PianoPlayerPage(Screen):
             return
         self.ids.player_status.text = f"재생 준비 완료 · {len(self.display_notes)}개 음표"
         self.ids.play_button.disabled = False
+        self.ids.progress_slider.value = 0
+        self.ids.playhead_label.text = f"00:00 / {self._format_time(self.duration)}"
 
     def toggle_playback(self):
         if not self.sound:
@@ -662,18 +671,50 @@ class PianoPlayerPage(Screen):
             self.ids.play_button.text = "재생"
         if "keyboard" in self.ids:
             self.ids.keyboard.set_active_notes([])
+        if "progress_slider" in self.ids:
+            self._updating_progress = True
+            self.ids.progress_slider.value = 0
+            self._updating_progress = False
+        if "playhead_label" in self.ids:
+            self.ids.playhead_label.text = f"00:00 / {self._format_time(self.duration)}"
 
     def _update_playhead(self, dt):
         if not self.sound or self.sound.state != "play":
-            self.stop_playback()
+            self.play_event = None
+            self.ids.play_button.text = "재생"
+            self.ids.keyboard.set_active_notes([])
             return False
-        position = self.sound.get_pos()
+        position = max(0.0, self.sound.get_pos())
         active = [
             note["pitch"] for note in self.display_notes
             if note["start"] <= position < note["end"]
         ]
         self.ids.keyboard.set_active_notes(active)
+        self._updating_progress = True
+        self.ids.progress_slider.value = min(1000, position / max(self.duration, 0.001) * 1000)
+        self._updating_progress = False
+        self.ids.playhead_label.text = (
+            f"{self._format_time(position)} / {self._format_time(self.duration)}"
+        )
         return True
+
+    def seek_playback(self, value):
+        if self._updating_progress or not self.sound or self.duration <= 0:
+            return
+        position = max(0.0, min(self.duration, float(value) / 1000.0 * self.duration))
+        try:
+            self.sound.seek(position)
+        except Exception as exc:
+            self.ids.player_status.text = f"위치 이동을 지원하지 않는 오디오 장치입니다: {exc}"
+            return
+        active = [
+            note["pitch"] for note in self.display_notes
+            if note["start"] <= position < note["end"]
+        ]
+        self.ids.keyboard.set_active_notes(active)
+        self.ids.playhead_label.text = (
+            f"{self._format_time(position)} / {self._format_time(self.duration)}"
+        )
 
     def set_tempo(self, value):
         value = max(0.5, min(1.5, float(value)))
@@ -681,8 +722,14 @@ class PianoPlayerPage(Screen):
             return
         self.tempo_scale = value
         self.stop_playback()
-        self.ids.player_status.text = f"템포 {round(value * 100)}% · 다시 변환 중..."
+        self.ids.player_status.text = f"템포 {round(value * 100)}% · 변경 대기..."
         self.ids.play_button.disabled = True
+        if self._tempo_event:
+            self._tempo_event.cancel()
+        self._tempo_event = Clock.schedule_once(self._render_after_tempo, 0.45)
+
+    def _render_after_tempo(self, _dt):
+        self._tempo_event = None
         self._start_render()
 
     def go_back(self):
