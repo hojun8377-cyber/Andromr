@@ -597,10 +597,10 @@ class PianoPlayerPage(Screen):
         seconds = max(0, int(seconds))
         return f"{seconds // 60:02d}:{seconds % 60:02d}"
 
-    def load_score(self, path):
-        self.stop_playback()
+    def _release_audio(self):
         if self.sound:
             try:
+                self.sound.stop()
                 self.sound.unload()
             except Exception:
                 pass
@@ -610,6 +610,11 @@ class PianoPlayerPage(Screen):
                 os.remove(self.wav_path)
             except OSError:
                 pass
+        self.wav_path = None
+
+    def load_score(self, path):
+        self.stop_playback()
+        self._release_audio()
         self.score_path = path
         self.tempo_scale = 1.0
         self.ids.player_title.text = os.path.splitext(os.path.basename(path))[0]
@@ -637,12 +642,14 @@ class PianoPlayerPage(Screen):
                 os.remove(result[0])
             return
         if error:
+            self._release_audio()
             self.ids.player_status.text = f"재생 준비 실패: {error}"
             self.ids.play_button.disabled = True
             return
         self.wav_path, self.display_notes, self.duration = result
         self.sound = SoundLoader.load(self.wav_path)
         if not self.sound:
+            self._release_audio()
             self.ids.player_status.text = "WAV 오디오 로더를 초기화하지 못했습니다."
             self.ids.play_button.disabled = True
             return
@@ -683,6 +690,10 @@ class PianoPlayerPage(Screen):
             self.play_event = None
             self.ids.play_button.text = "재생"
             self.ids.keyboard.set_active_notes([])
+            self._updating_progress = True
+            self.ids.progress_slider.value = 0
+            self._updating_progress = False
+            self.ids.playhead_label.text = f"00:00 / {self._format_time(self.duration)}"
             return False
         position = max(0.0, self.sound.get_pos())
         active = [
@@ -722,6 +733,7 @@ class PianoPlayerPage(Screen):
             return
         self.tempo_scale = value
         self.stop_playback()
+        self._release_audio()
         self.ids.player_status.text = f"템포 {round(value * 100)}% · 변경 대기..."
         self.ids.play_button.disabled = True
         if self._tempo_event:
