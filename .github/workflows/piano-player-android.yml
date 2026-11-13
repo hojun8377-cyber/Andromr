@@ -18,6 +18,9 @@ jobs:
         with:
           ref: feature/piano-player-foundation
 
+      - name: Test MusicXML parser and MIDI writer
+        run: python3 -m unittest pytests.test_piano_musicxml_midi
+
       - name: Install SoundFont archive tools
         run: |
           sudo apt-get update
