@@ -136,6 +136,23 @@ ScreenManager:
                 height: dp(150)
 
             MDLabel:
+                id: playhead_label
+                text: "00:00 / 00:00"
+                halign: "center"
+                size_hint_y: None
+                height: dp(22)
+
+            MDSlider:
+                id: progress_slider
+                min: 0
+                max: 1000
+                value: 0
+                step: 1
+                size_hint_y: None
+                height: dp(34)
+                on_value: root.seek_playback(self.value)
+
+            MDLabel:
                 text: "재생 속도"
                 halign: "center"
                 size_hint_y: None
