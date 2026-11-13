@@ -18,3 +18,13 @@ Base App:
 - KivyMD: MIT
 - Buildozer: MIT
 - Pyjnius: MIT
+
+
+Piano playback engine
+TinySoundFont - MIT License
+Copyright (C) 2017-2025 Bernhard Schelling. Based on SFZero by Steve Folta.
+https://github.com/schellingb/TinySoundFont
+
+Piano samples
+Upright Piano KW by FreePats - CC0 1.0 Universal (public domain dedication).
+https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html
