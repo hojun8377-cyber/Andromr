@@ -30,35 +30,7 @@ jobs:
         run: |
           mkdir -p "$HOME/.buildozer"
           docker pull kivy/buildozer
-          docker run --rm -v "$HOME/.buildozer:/home/user/.buildozer" -v "$PWD:/home/user/hostcwd" -w /home/user/hostcwd kivy/buildozer bash -lc '
-            # First invocation installs the Android toolchain and prepares p4a templates.
-            buildozer android debug || true
-            COMMON=".buildozer/android/platform/python-for-android/pythonforandroid/bootstraps/common/build/templates/build.tmpl.gradle"
-            SDL=".buildozer/android/platform/python-for-android/pythonforandroid/bootstraps/sdl_common/build/templates/build.tmpl.gradle"
-            if [ -f "$COMMON" ]; then
-              python - "$COMMON" <<'"'"'PY'"'"'
-          import pathlib, sys
-          p = pathlib.Path(sys.argv[1])
-          s = p.read_text()
-          line = "        ndk { abiFilters \'arm64-v8a\' }"
-          if line not in s and "defaultConfig {" in s:
-              s = s.replace("defaultConfig {", "defaultConfig {\\n" + line, 1)
-              p.write_text(s)
-          PY
-            fi
-            if [ -f "$SDL" ]; then
-              python - "$SDL" <<'"'"'PY'"'"'
-          import pathlib, sys
-          p = pathlib.Path(sys.argv[1])
-          s = p.read_text()
-          attr = "android:enableOnBackInvokedCallback=\\"false\\""
-          if attr not in s and "<application" in s:
-              s = s.replace("<application", "<application " + attr, 1)
-              p.write_text(s)
-          PY
-            fi
-            buildozer android debug
-          '
+          docker run --rm -v "$HOME/.buildozer:/home/user/.buildozer" -v "$PWD:/home/user/hostcwd" -w /home/user/hostcwd kivy/buildozer bash -lc 'buildozer android debug || true; python scripts/patch_build_templates.py; buildozer android debug'
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
