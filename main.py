@@ -22,6 +22,7 @@ from kivymd.uix.button import MDFlatButton
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.textfield import MDTextField
 from kivy.core.window import Window
+from kivy.core.audio import SoundLoader
 from kivy.utils import platform
 from kivymd.toast import toast
 from kivy.metrics import dp, sp
@@ -51,6 +52,8 @@ from homr.transformer.tromr import cleanup_tromr
 from validation.rate_validation_result import rate_folder
 from globals import APP_PATH, XML_PATH, IMAGE_PATH, MODEL_STORAGE, appdata, APP_STORAGE
 from utils import get_sys_theme, safe_filename, pdf_to_img, downscale_cv2
+from piano.piano_keyboard import PianoKeyboard
+from piano.player import render_musicxml_to_wav
 
 if platform == "android":
     from androidstorage4kivy import SharedStorage, ShareSheet  # type: ignore
@@ -195,6 +198,7 @@ class RenameDialogContent(MDBoxLayout):
 
 
 Factory.register("AlwaysHintSlider", cls=AlwaysHintSlider)
+Factory.register("PianoKeyboard", cls=PianoKeyboard)
 Factory.register(
     "MovableFloatingActionButtonSpeedDial",
     cls=MovableFloatingActionButtonSpeedDial,
@@ -263,6 +267,15 @@ class LandingPage(Screen):
                 icon_color=get_color_from_hex("#D32F2F"),
             )
 
+            b_play = MDIconButton(
+                icon="play-circle-outline",
+                on_release=lambda func, path=os.path.join(XML_PATH, file): self.app.open_piano_player(path),
+                size_hint_x=None,
+                pos_hint={"center_y": 0.5},
+                theme_icon_color="Custom",
+                icon_color=self.app.theme_cls.primary_color,
+            )
+
             b_export = MDIconButton(
                 icon="export-variant",
                 on_release=lambda func, path=os.path.join(XML_PATH, file): self.export_file(path),
@@ -273,6 +286,7 @@ class LandingPage(Screen):
             )
 
             row.add_widget(l_name)
+            row.add_widget(b_play)
             row.add_widget(b_export)
             row.add_widget(b_delete)
             scroll_box.add_widget(row)  # Add row instead of individual widgets
@@ -565,6 +579,121 @@ class EditFilePage(Screen):
             img_widget.texture = texture
 
 
+class PianoPlayerPage(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.score_path = None
+        self.sound = None
+        self.wav_path = None
+        self.display_notes = []
+        self.duration = 0.0
+        self.tempo_scale = 1.0
+        self.play_event = None
+
+    def load_score(self, path):
+        self.stop_playback()
+        if self.sound:
+            try:
+                self.sound.unload()
+            except Exception:
+                pass
+            self.sound = None
+        if self.wav_path and os.path.exists(self.wav_path):
+            try:
+                os.remove(self.wav_path)
+            except OSError:
+                pass
+        self.score_path = path
+        self.tempo_scale = 1.0
+        self.ids.player_title.text = os.path.splitext(os.path.basename(path))[0]
+        self.ids.player_status.text = "악보를 피아노 음원으로 변환하는 중..."
+        self.ids.play_button.disabled = True
+        self.ids.tempo_slider.value = 1.0
+        self._start_render()
+
+    def _start_render(self):
+        path = self.score_path
+        tempo = self.tempo_scale
+
+        def worker():
+            try:
+                result = render_musicxml_to_wav(path, tempo_scale=tempo)
+                Clock.schedule_once(lambda dt: self._render_complete(path, result, None))
+            except Exception as exc:
+                Clock.schedule_once(lambda dt: self._render_complete(path, None, str(exc)))
+
+        Thread(target=worker, daemon=True).start()
+
+    def _render_complete(self, path, result, error):
+        if path != self.score_path:
+            if result and os.path.exists(result[0]):
+                os.remove(result[0])
+            return
+        if error:
+            self.ids.player_status.text = f"재생 준비 실패: {error}"
+            self.ids.play_button.disabled = True
+            return
+        self.wav_path, self.display_notes, self.duration = result
+        self.sound = SoundLoader.load(self.wav_path)
+        if not self.sound:
+            self.ids.player_status.text = "WAV 오디오 로더를 초기화하지 못했습니다."
+            self.ids.play_button.disabled = True
+            return
+        self.ids.player_status.text = f"재생 준비 완료 · {len(self.display_notes)}개 음표"
+        self.ids.play_button.disabled = False
+
+    def toggle_playback(self):
+        if not self.sound:
+            return
+        if self.sound.state == "play":
+            self.stop_playback()
+            return
+        self.sound.play()
+        self.ids.play_button.text = "정지"
+        self.play_event = Clock.schedule_interval(self._update_playhead, 0.05)
+
+    def stop_playback(self):
+        if self.sound and self.sound.state == "play":
+            self.sound.stop()
+        if self.play_event:
+            Clock.unschedule(self.play_event)
+            self.play_event = None
+        if "play_button" in self.ids:
+            self.ids.play_button.text = "재생"
+        if "keyboard" in self.ids:
+            self.ids.keyboard.set_active_notes([])
+
+    def _update_playhead(self, dt):
+        if not self.sound or self.sound.state != "play":
+            self.stop_playback()
+            return False
+        position = self.sound.get_pos()
+        active = [
+            note["pitch"] for note in self.display_notes
+            if note["start"] <= position < note["end"]
+        ]
+        self.ids.keyboard.set_active_notes(active)
+        return True
+
+    def set_tempo(self, value):
+        value = max(0.5, min(1.5, float(value)))
+        if not self.score_path or abs(value - self.tempo_scale) < 0.02:
+            return
+        self.tempo_scale = value
+        self.stop_playback()
+        self.ids.player_status.text = f"템포 {round(value * 100)}% · 다시 변환 중..."
+        self.ids.play_button.disabled = True
+        self._start_render()
+
+    def go_back(self):
+        self.stop_playback()
+        MDApp.get_running_app().change_screen("landing")
+
+    def on_leave(self, *args):
+        self.stop_playback()
+        return super().on_leave(*args)
+
+
 class License(RecycleView):
     # shows the license using a recycling view widget for better performance
     def __init__(self, **kwargs):
@@ -685,6 +814,11 @@ class Andromr(MDApp):
             self.sm.current = "licensepagebutton"
 
         return self.sm
+
+    def open_piano_player(self, path):
+        player = self.sm.get_screen("piano_player")
+        player.load_score(path)
+        self.change_screen("piano_player")
 
     def setup(self):
         """
