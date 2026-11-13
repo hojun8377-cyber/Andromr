@@ -87,7 +87,7 @@ def render_musicxml_to_wav(musicxml_path, output_path=None, tempo_scale=1.0):
                 while cursor < frame:
                     count = min(BLOCK_FRAMES, frame - cursor)
                     lib.ps_render(handle, buffer, count)
-                    wav.writeframesraw(bytes(memoryview(buffer).cast("B")[:count * 4]))
+                    wav.writeframesraw(ctypes.string_at(buffer, count * 4))
                     cursor += count
                 if action == 0:
                     lib.ps_note_off(handle, pitch)
