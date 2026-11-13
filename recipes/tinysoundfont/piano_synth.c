@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#define TSF_IMPLEMENTATION
 #include "tsf.h"
 
 typedef struct {
