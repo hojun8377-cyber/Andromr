@@ -4,6 +4,7 @@ ScreenManager:
     SettingsPage:
     DownloadPage:
     EditFilePage:
+    PianoPlayerPage:
     OSSLicensePage:
     LicensePageButton:
     LicensePage:
@@ -93,6 +94,75 @@ ScreenManager:
                 halign: 'center'
                 size_hint_y: None
                 height: self.texture_size[1]  # Ensure the label only takes the needed height
+
+<PianoPlayerPage>:
+    name: "piano_player"
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: [dp(0), dp(20), dp(0), dp(app.bottom_pad)]
+        MDTopAppBar:
+            title: "Piano Player"
+            elevation: 0
+            type_height: "small"
+            left_action_items: [["arrow-left", lambda x: root.go_back()]]
+            md_bg_color: (0, 0, 0, 1) if app.theme_cls.theme_style == 'Dark' else (0.95, 0.95, 0.95, 1)
+            specific_text_color: (1, 1, 1, 1) if app.theme_cls.theme_style == 'Dark' else (0, 0, 0, 1)
+
+        MDBoxLayout:
+            orientation: "vertical"
+            padding: dp(18)
+            spacing: dp(14)
+
+            MDLabel:
+                id: player_title
+                text: "악보 제목"
+                halign: "center"
+                bold: True
+                size_hint_y: None
+                height: dp(42)
+
+            MDLabel:
+                id: player_status
+                text: "악보를 선택하세요"
+                halign: "center"
+                size_hint_y: None
+                height: dp(36)
+
+            Widget:
+
+            PianoKeyboard:
+                id: keyboard
+                size_hint_y: None
+                height: dp(150)
+
+            MDLabel:
+                text: "재생 속도"
+                halign: "center"
+                size_hint_y: None
+                height: dp(24)
+
+            MDSlider:
+                id: tempo_slider
+                min: 0.5
+                max: 1.5
+                value: 1
+                step: 0.05
+                on_value: root.set_tempo(self.value)
+
+            MDLabel:
+                text: str(round(tempo_slider.value * 100)) + "%"
+                halign: "center"
+                size_hint_y: None
+                height: dp(24)
+
+            MDRaisedButton:
+                id: play_button
+                text: "재생"
+                disabled: True
+                pos_hint: {"center_x": 0.5}
+                on_release: root.toggle_playback()
+
+            Widget:
 
 <SettingsPage>:
     name: "settings"
