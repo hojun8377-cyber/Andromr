@@ -21,7 +21,7 @@
 
 ## 오디오 엔진 결정 사항
 
-현재 `piano/player.py`는 `libpianosynth.so`의 C ABI(`ps_create`, `ps_note_on`, `ps_note_off`, `ps_render`, `ps_destroy`)를 호출하고 `piano/assets/upright_piano_kw.sf2`를 읽도록 작성되어 있습니다. 그러나 현재 브랜치에는 이 네이티브 라이브러리가 없고, SoundFont 다운로드 스크립트만 있습니다. 따라서 오디오 렌더링은 아직 실행 불가 상태이며, Android ARM64용 엔진 빌드/패키징이 다음 핵심 작업입니다. SoundFont는 FreePats의 Upright Piano KW를 사용하도록 설정되어 있고 해당 페이지는 CC0 라이선스를 명시합니다.
+현재 `piano/player.py`는 `libpianosynth.so`의 C ABI(`ps_create`, `ps_note_on`, `ps_note_off`, `ps_render`, `ps_destroy`)를 호출합니다. 네이티브 라이브러리 소스와 ARM64용 python-for-android 로컬 recipe(`recipes/tinysoundfont/`)가 저장소에 있으며, Android 빌드 과정에서 `libpianosynth.so`를 생성하도록 구성되어 있습니다. SoundFont 바이너리는 저장소에 포함하지 않고 `scripts/fetch_piano_soundfont.sh`가 FreePats Upright Piano KW를 빌드 시 내려받습니다(CC0 1.0). 따라서 남은 핵심 검증은 CI에서 실제 APK 빌드가 성공하는지, 그리고 Galaxy S23에서 재생/지연/메모리를 실기기 테스트하는 것입니다.
 
 ## MusicXML 파서 범위
 
