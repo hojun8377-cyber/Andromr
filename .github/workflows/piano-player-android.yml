@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir -p "$HOME/.buildozer"
           docker pull kivy/buildozer
-          docker run --rm -v "$HOME/.buildozer:/home/user/.buildozer" -v "$PWD:/home/user/hostcwd" -w /home/user/hostcwd kivy/buildozer bash -lc 'buildozer android debug || true; python scripts/patch_build_templates.py; buildozer android debug'
+          docker run --rm --entrypoint /bin/bash -v "$HOME/.buildozer:/home/user/.buildozer" -v "$PWD:/home/user/hostcwd" -w /home/user/hostcwd kivy/buildozer -lc 'buildozer android debug || true; python scripts/patch_build_templates.py; buildozer android debug'
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
