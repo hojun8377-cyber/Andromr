@@ -43,7 +43,7 @@ version = 1.7.2
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3, kivy==2.3.1, kivymd==1.2.0, numpy, opencv, pillow, typing_extensions, pyjnius, android, pykdtree, musicxml, requests, androidstorage4kivy, editdistance, tinysoundfont
+requirements = python3, kivy==2.3.1, kivymd==1.2.0, numpy, opencv, pillow, typing_extensions, pyjnius, android, pykdtree, musicxml, requests, androidstorage4kivy, tinysoundfont
 
 p4a.local_recipes = ./recipes
 
