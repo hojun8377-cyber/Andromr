@@ -11,7 +11,7 @@ class TinySoundFontRecipe(Recipe):
     url = None
     depends = []
     archs = ["arm64-v8a"]
-    built_libraries = {"libpianosynth.so": None}
+    built_libraries = {"libpianosynth.so": ""}
 
     def should_build(self, arch):
         return not isfile(join(self.get_build_dir(arch.arch), "libpianosynth.so"))
